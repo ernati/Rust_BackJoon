@@ -6,7 +6,8 @@ pub fn add(a: i32, b: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::File;
+    use std::process::Command;
+    use std::path::Path;
 
     #[test]
     fn test_add_positive() {
@@ -26,15 +27,24 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn test_create_file_in_root_dir_requires_sudo() {
-        // 이 테스트는 Linux의 /root 디렉토리에 파일을 생성해야 하므로 sudo 권한이 필요합니다.
         let path = "/root/test_lib_rs_sudo";
-        let result = File::create(path);
-        assert!(
-            result.is_ok(),
-            "이 테스트는 sudo 권한이 필요합니다: 파일 생성 실패: {:?}",
-            result.err()
-        );
-        // 성공한 경우 파일을 삭제합니다.
-        let _ = std::fs::remove_file(path);
+        // sudo를 통해 파일 생성 요청 (비밀번호 입력 프롬프트 발생)
+        let status = Command::new("sudo")
+            .arg("touch")
+            .arg(path)
+            .status()
+            .expect("failed to execute sudo touch");
+        assert!(status.success(), "sudo touch failed with status: {:?}", status);
+
+        // 파일이 정상적으로 생성되었는지 확인
+        assert!(Path::new(path).exists(), "파일이 생성되지 않았습니다");
+
+        // sudo를 통해 파일 삭제
+        let status = Command::new("sudo")
+            .arg("rm")
+            .arg(path)
+            .status()
+            .expect("failed to execute sudo rm");
+        assert!(status.success(), "sudo rm failed with status: {:?}", status);
     }
 }
